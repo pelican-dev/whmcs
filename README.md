@@ -1,45 +1,39 @@
 ## WHMCS
 
-WHMCS Module for the [Pterodactyl Panel](https://github.com/pterodactyl/panel/).
+WHMCS Module for the [Pelican Panel](https://github.com/pelican-dev/panel/).
 
 ## Configuration support
 
-Please use the [Pterodactyl Discord](https://discord.gg/pterodactyl) for configuration related support instead of GitHub issues.
+Please use the [Pelican Discord](https://discord.gg/pelican-panel) for configuration related support instead of GitHub issues.
 
 ## NOTE
 
-This module requires the panel to be on version 1.0.0 and above, if you need one for the 0.7.x versions, check the [0.7 branch.](https://github.com/pterodactyl/whmcs/tree/0.7)
+This module requires the panel to be on version 1.0.0 and above.
 
 ## Installation
 
 [Video Tutorial](https://www.youtube.com/watch?v=wURpRD9vfj4) (uses 0.7 version of the panel but nothing changed functionality wise)
 
 1. Download/Git clone this repository.
-2. Move the ``pterodactyl/`` folder into ``<path to whmcs>/modules/servers/``.
+2. Move the ``pelican/`` folder into ``<path to whmcs>/modules/servers/``.
 3. Create API Credentials with these permissions: ![Image](https://i.imgur.com/oeoTyBO.png)
 4. In WHMCS 8+ navigate to System Settings → Servers. In WHMCS 7 or below navigate to Setup → Products/Services → Servers
-5. Create new server, fill the name with anything you want, hostname as the url to the panel either as an IP or domain. For example: ``123.123.123.123`` or ``my.pterodactyl.panel``
-6. Change Server Type to Pterodactyl, leave username empty, fill the password field with your generated API Key.
+5. Create new server, fill the name with anything you want, hostname as the url to the panel either as an IP or domain. For example: ``123.123.123.123`` or ``my.pelican.panel``
+6. Change Server Type to Pelican, leave username empty, fill the password field with your generated API Key.
 7. Tick the "Secure" option if your panel is using SSL.
 8. Confirm that everything works by clicking the Test Connection button -> Save Changes.
 9. Go back to the Servers screen and press Create New Group, name it anything you want and choose the created server and press the Add button, Save Changes.
 10. Navigate to Setup > Products/Services > Products/Services
 11. Create your desired product (and product group if you haven't already) with the type of Other and product name of anything -> Continue.
-12. Click the Module Settings tab, choose for Module Name Pterodactyl and for the Server Group the group you created in step 8.
+12. Click the Module Settings tab, choose for Module Name Pelican and for the Server Group the group you created in step 8.
 13. Fill all non-optional fields, and you are good to go!
 
 ## Credits
 
-[Dane](https://github.com/DaneEveritt) and [everyone else](https://github.com/Pterodactyl/Panel/graphs/contributors) involved in development of the Pterodactyl Panel.
+[Dane](https://github.com/DaneEveritt) and [everyone else](https://github.com/pelican-dev/panel/graphs/contributors) involved in development of the Pelican Panel.
 [death-droid](https://github.com/death-droid) for the original WHMCS module.
-[Crident](https://crident.com) for providing me a dev environment to test the module on and the installation video.
 
 # FAQ
-
-## Migrating from death-droid's module
-
-Migrating is simple, delete death-droid's module and then upload this one instead of it.
-Then do the steps 3-6 in Installation instructions above and resetup all products.
 
 ## Overwriting values through configurable options
 

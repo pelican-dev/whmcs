@@ -30,7 +30,7 @@ if(!defined("WHMCS")) {
 
 use Illuminate\Database\Capsule\Manager as Capsule;
 
-function pterodactyl_GetHostname(array $params) {
+function pelican_GetHostname(array $params) {
     $hostname = $params['serverhostname'];
     if ($hostname === '') throw new Exception('Could not find the panel\'s hostname - did you configure server group for the product?');
 
@@ -48,22 +48,22 @@ function pterodactyl_GetHostname(array $params) {
     return rtrim($hostname, '/');
 }
 
-function pterodactyl_API(array $params, $endpoint, array $data = [], $method = "GET", $dontLog = false) {
-    $url = pterodactyl_GetHostname($params) . '/api/application/' . $endpoint;
+function pelican_API(array $params, $endpoint, array $data = [], $method = "GET", $dontLog = false) {
+    $url = pelican_GetHostname($params) . '/api/application/' . $endpoint;
 
     $curl = curl_init();
     curl_setopt($curl, CURLOPT_URL, $url);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
     curl_setopt($curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
-    curl_setopt($curl, CURLOPT_USERAGENT, "Pterodactyl-WHMCS");
+    curl_setopt($curl, CURLOPT_USERAGENT, "Pelican-WHMCS");
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
     curl_setopt($curl, CURLOPT_POSTREDIR, CURL_REDIR_POST_301);
     curl_setopt($curl, CURLOPT_TIMEOUT, 5);
 
     $headers = [
         "Authorization: Bearer " . $params['serverpassword'],
-        "Accept: Application/vnd.pterodactyl.v1+json",
+        "Accept: application/json",
     ];
 
     if($method === 'POST' || $method === 'PATCH') {
@@ -79,30 +79,30 @@ function pterodactyl_API(array $params, $endpoint, array $data = [], $method = "
     $responseData = json_decode($response, true);
     $responseData['status_code'] = curl_getinfo($curl, CURLINFO_HTTP_CODE);
     
-    if($responseData['status_code'] === 0 && !$dontLog) logModuleCall("Pterodactyl-WHMCS", "CURL ERROR", curl_error($curl), "");
+    if($responseData['status_code'] === 0 && !$dontLog) logModuleCall("Pelican-WHMCS", "CURL ERROR", curl_error($curl), "");
 
     curl_close($curl);
 
-    if(!$dontLog) logModuleCall("Pterodactyl-WHMCS", $method . " - " . $url,
+    if(!$dontLog) logModuleCall("Pelican-WHMCS", $method . " - " . $url,
         isset($data) ? json_encode($data) : "",
         print_r($responseData, true));
 
     return $responseData;
 }
 
-function pterodactyl_Error($func, $params, Exception $err) {
-    logModuleCall("Pterodactyl-WHMCS", $func, $params, $err->getMessage(), $err->getTraceAsString());
+function pelican_Error($func, $params, Exception $err) {
+    logModuleCall("Pelican-WHMCS", $func, $params, $err->getMessage(), $err->getTraceAsString());
 }
 
-function pterodactyl_MetaData() {
+function pelican_MetaData() {
     return [
-        "DisplayName" => "Pterodactyl",
+        "DisplayName" => "Pelican",
         "APIVersion" => "1.1",
         "RequiresServer" => true,
     ];
 }
 
-function pterodactyl_ConfigOptions() {
+function pelican_ConfigOptions() {
     return [
         "cpu" => [
             "FriendlyName" => "CPU Limit (%)",
@@ -214,7 +214,7 @@ function pterodactyl_ConfigOptions() {
     ];
 }
 
-function pterodactyl_TestConnection(array $params) {
+function pelican_TestConnection(array $params) {
     $solutions = [
         0 => "Check module debug log for more detailed error.",
         401 => "Authorization header either missing or not provided.",
@@ -226,7 +226,7 @@ function pterodactyl_TestConnection(array $params) {
 
     $err = "";
     try {
-        $response = pterodactyl_API($params, 'nodes');
+        $response = pelican_API($params, 'nodes');
 
         if($response['status_code'] !== 200) {
             $status_code = $response['status_code'];
@@ -238,7 +238,7 @@ function pterodactyl_TestConnection(array $params) {
             }
         }
     } catch(Exception $e) {
-        pterodactyl_Error(__FUNCTION__, $params, $e);
+        pelican_Error(__FUNCTION__, $params, $e);
         $err = $e->getMessage();
     }
 
@@ -258,7 +258,7 @@ function random($length) {
     }
 }
 
-function pterodactyl_GenerateUsername($length = 8) {
+function pelican_GenerateUsername($length = 8) {
     $returnable = false;
     while (!$returnable) {
         $generated = random($length);
@@ -269,8 +269,8 @@ function pterodactyl_GenerateUsername($length = 8) {
     return $generated;
 }
 
-function pterodactyl_GetOption(array $params, $id, $default = NULL) {
-    $options = pterodactyl_ConfigOptions();
+function pelican_GetOption(array $params, $id, $default = NULL) {
+    $options = pelican_ConfigOptions();
 
     $friendlyName = $options[$id]['FriendlyName'];
     if(isset($params['configoptions'][$friendlyName]) && $params['configoptions'][$friendlyName] !== '') {
@@ -285,7 +285,7 @@ function pterodactyl_GetOption(array $params, $id, $default = NULL) {
 
     $found = false;
     $i = 0;
-    foreach(pterodactyl_ConfigOptions() as $key => $value) {
+    foreach(pelican_ConfigOptions() as $key => $value) {
         $i++;
         if($key === $id) {
             $found = true;
@@ -300,17 +300,17 @@ function pterodactyl_GetOption(array $params, $id, $default = NULL) {
     return $default;
 }
 
-function pterodactyl_CreateAccount(array $params) {
+function pelican_CreateAccount(array $params) {
     try {
-        $serverId = pterodactyl_GetServerID($params);
+        $serverId = pelican_GetServerID($params);
         if(isset($serverId)) throw new Exception('Failed to create server because it is already created.');
 
-        $userResult = pterodactyl_API($params, 'users/external/' . $params['clientsdetails']['id']);
+        $userResult = pelican_API($params, 'users/external/' . $params['clientsdetails']['id']);
         if($userResult['status_code'] === 404) {
-            $userResult = pterodactyl_API($params, 'users?filter[email]=' . urlencode($params['clientsdetails']['email']));
+            $userResult = pelican_API($params, 'users?filter[email]=' . urlencode($params['clientsdetails']['email']));
             if($userResult['meta']['pagination']['total'] === 0) {
-                $userResult = pterodactyl_API($params, 'users', [
-                    'username' => pterodactyl_GetOption($params, 'username', pterodactyl_GenerateUsername()),
+                $userResult = pelican_API($params, 'users', [
+                    'username' => pelican_GetOption($params, 'username', pelican_GenerateUsername()),
                     'email' => $params['clientsdetails']['email'],
                     'first_name' => $params['clientsdetails']['firstname'],
                     'last_name' => $params['clientsdetails']['lastname'],
@@ -333,10 +333,10 @@ function pterodactyl_CreateAccount(array $params) {
             throw new Exception('Failed to create user, received error code: ' . $userResult['status_code'] . '. Enable module debug log for more info.');
         }
 
-        $nestId = pterodactyl_GetOption($params, 'nest_id');
-        $eggId = pterodactyl_GetOption($params, 'egg_id');
+        $nestId = pelican_GetOption($params, 'nest_id');
+        $eggId = pelican_GetOption($params, 'egg_id');
 
-        $eggData = pterodactyl_API($params, 'nests/' . $nestId . '/eggs/' . $eggId . '?include=variables');
+        $eggData = pelican_API($params, 'nests/' . $nestId . '/eggs/' . $eggId . '?include=variables');
         if($eggData['status_code'] !== 200) throw new Exception('Failed to get egg data, received error code: ' . $eggData['status_code'] . '. Enable module debug log for more info.');
 
         $environment = [];
@@ -344,30 +344,30 @@ function pterodactyl_CreateAccount(array $params) {
             $attr = $val['attributes'];
             $var = $attr['env_variable'];
             $default = $attr['default_value'];
-            $friendlyName = pterodactyl_GetOption($params, $attr['name']);
-            $envName = pterodactyl_GetOption($params, $attr['env_variable']);
+            $friendlyName = pelican_GetOption($params, $attr['name']);
+            $envName = pelican_GetOption($params, $attr['env_variable']);
 
             if(isset($friendlyName)) $environment[$var] = $friendlyName;
             elseif(isset($envName)) $environment[$var] = $envName;
             else $environment[$var] = $default;
         }
 
-        $name = pterodactyl_GetOption($params, 'server_name', pterodactyl_GenerateUsername() . '_' . $params['serviceid']);
-        $memory = pterodactyl_GetOption($params, 'memory');
-        $swap = pterodactyl_GetOption($params, 'swap');
-        $io = pterodactyl_GetOption($params, 'io');
-        $cpu = pterodactyl_GetOption($params, 'cpu');
-        $disk = pterodactyl_GetOption($params, 'disk');
-        $location_id = pterodactyl_GetOption($params, 'location_id');
-        $dedicated_ip = pterodactyl_GetOption($params, 'dedicated_ip') ? true : false;
-        $port_range = pterodactyl_GetOption($params, 'port_range');
+        $name = pelican_GetOption($params, 'server_name', pelican_GenerateUsername() . '_' . $params['serviceid']);
+        $memory = pelican_GetOption($params, 'memory');
+        $swap = pelican_GetOption($params, 'swap');
+        $io = pelican_GetOption($params, 'io');
+        $cpu = pelican_GetOption($params, 'cpu');
+        $disk = pelican_GetOption($params, 'disk');
+        $location_id = pelican_GetOption($params, 'location_id');
+        $dedicated_ip = pelican_GetOption($params, 'dedicated_ip') ? true : false;
+        $port_range = pelican_GetOption($params, 'port_range');
         $port_range = isset($port_range) ? explode(',', $port_range) : [];
-        $image = pterodactyl_GetOption($params, 'image', $eggData['attributes']['docker_image']);
-        $startup = pterodactyl_GetOption($params, 'startup', $eggData['attributes']['startup']);
-        $databases = pterodactyl_GetOption($params, 'databases');
-        $allocations = pterodactyl_GetOption($params, 'allocations');
-        $backups = pterodactyl_GetOption($params, 'backups');
-        $oom_disabled = pterodactyl_GetOption($params, 'oom_disabled') ? true : false;
+        $image = pelican_GetOption($params, 'image', $eggData['attributes']['docker_image']);
+        $startup = pelican_GetOption($params, 'startup', $eggData['attributes']['startup']);
+        $databases = pelican_GetOption($params, 'databases');
+        $allocations = pelican_GetOption($params, 'allocations');
+        $backups = pelican_GetOption($params, 'backups');
+        $oom_disabled = pelican_GetOption($params, 'oom_disabled') ? true : false;
         $serverData = [
             'name' => $name,
             'user' => (int) $userId,
@@ -398,7 +398,7 @@ function pterodactyl_CreateAccount(array $params) {
             'external_id' => (string) $params['serviceid'],
         ];
 
-        $server = pterodactyl_API($params, 'servers?include=allocations', $serverData, 'POST');
+        $server = pelican_API($params, 'servers?include=allocations', $serverData, 'POST');
 
         if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
         if($server['status_code'] !== 201) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
@@ -428,8 +428,8 @@ function pterodactyl_CreateAccount(array $params) {
 }
 
 // Function to allow backwards compatibility with death-droid's module
-function pterodactyl_GetServerID(array $params, $raw = false) {
-    $serverResult = pterodactyl_API($params, 'servers/external/' . $params['serviceid'], [], 'GET', true);
+function pelican_GetServerID(array $params, $raw = false) {
+    $serverResult = pelican_API($params, 'servers/external/' . $params['serviceid'], [], 'GET', true);
     if($serverResult['status_code'] === 200) {
         if($raw) return $serverResult;
         else return $serverResult['attributes']['id'];
@@ -437,15 +437,15 @@ function pterodactyl_GetServerID(array $params, $raw = false) {
         throw new Exception('Failed to get server, panel errored. Check panel logs for more info.');
     }
 
-    if(Capsule::schema()->hasTable('tbl_pterodactylproduct')) {
-        $oldData = Capsule::table('tbl_pterodactylproduct')
+    if(Capsule::schema()->hasTable('tbl_pelicanproduct')) {
+        $oldData = Capsule::table('tbl_pelicanproduct')
             ->select('user_id', 'server_id')
             ->where('service_id', '=', $params['serviceid'])
             ->first();
 
         if(isset($oldData) && isset($oldData->server_id)) {
             if($raw) {
-                $serverResult = pterodactyl_API($params, 'servers/' . $oldData->server_id);
+                $serverResult = pelican_API($params, 'servers/' . $oldData->server_id);
                 if($serverResult['status_code'] === 200) return $serverResult;
                 else throw new Exception('Failed to get server, received the error code: ' . $serverResult['status_code'] . '. Enable module debug log for more info.');
             } else {
@@ -455,12 +455,12 @@ function pterodactyl_GetServerID(array $params, $raw = false) {
     }
 }
 
-function pterodactyl_SuspendAccount(array $params) {
+function pelican_SuspendAccount(array $params) {
     try {
-        $serverId = pterodactyl_GetServerID($params);
+        $serverId = pelican_GetServerID($params);
         if(!isset($serverId)) throw new Exception('Failed to suspend server because it doesn\'t exist.');
 
-        $suspendResult = pterodactyl_API($params, 'servers/' . $serverId . '/suspend', [], 'POST');
+        $suspendResult = pelican_API($params, 'servers/' . $serverId . '/suspend', [], 'POST');
         if($suspendResult['status_code'] !== 204) throw new Exception('Failed to suspend the server, received error code: ' . $suspendResult['status_code'] . '. Enable module debug log for more info.');
     } catch(Exception $err) {
         return $err->getMessage();
@@ -469,12 +469,12 @@ function pterodactyl_SuspendAccount(array $params) {
     return 'success';
 }
 
-function pterodactyl_UnsuspendAccount(array $params) {
+function pelican_UnsuspendAccount(array $params) {
     try {
-        $serverId = pterodactyl_GetServerID($params);
+        $serverId = pelican_GetServerID($params);
         if(!isset($serverId)) throw new Exception('Failed to unsuspend server because it doesn\'t exist.');
 
-        $suspendResult = pterodactyl_API($params, 'servers/' . $serverId . '/unsuspend', [], 'POST');
+        $suspendResult = pelican_API($params, 'servers/' . $serverId . '/unsuspend', [], 'POST');
         if($suspendResult['status_code'] !== 204) throw new Exception('Failed to unsuspend the server, received error code: ' . $suspendResult['status_code'] . '. Enable module debug log for more info.');
     } catch(Exception $err) {
         return $err->getMessage();
@@ -483,12 +483,12 @@ function pterodactyl_UnsuspendAccount(array $params) {
     return 'success';
 }
 
-function pterodactyl_TerminateAccount(array $params) {
+function pelican_TerminateAccount(array $params) {
     try {
-        $serverId = pterodactyl_GetServerID($params);
+        $serverId = pelican_GetServerID($params);
         if(!isset($serverId)) throw new Exception('Failed to terminate server because it doesn\'t exist.');
 
-        $deleteResult = pterodactyl_API($params, 'servers/' . $serverId, [], 'DELETE');
+        $deleteResult = pelican_API($params, 'servers/' . $serverId, [], 'DELETE');
         if($deleteResult['status_code'] !== 204) throw new Exception('Failed to terminate the server, received error code: ' . $deleteResult['status_code'] . '. Enable module debug log for more info.');
     } catch(Exception $err) {
         return $err->getMessage();
@@ -502,18 +502,18 @@ function pterodactyl_TerminateAccount(array $params) {
     return 'success';
 }
 
-function pterodactyl_ChangePassword(array $params) {
+function pelican_ChangePassword(array $params) {
     try {
         if($params['password'] === '') throw new Exception('The password cannot be empty.');
 
-        $serverData = pterodactyl_GetServerID($params, true);
+        $serverData = pelican_GetServerID($params, true);
         if(!isset($serverData)) throw new Exception('Failed to change password because linked server doesn\'t exist.');
 
         $userId = $serverData['attributes']['user'];
-        $userResult = pterodactyl_API($params, 'users/' . $userId);
+        $userResult = pelican_API($params, 'users/' . $userId);
         if($userResult['status_code'] !== 200) throw new Exception('Failed to retrieve user, received error code: ' . $userResult['status_code'] . '.');
 
-        $updateResult = pterodactyl_API($params, 'users/' . $serverData['attributes']['user'], [
+        $updateResult = pelican_API($params, 'users/' . $serverData['attributes']['user'], [
             'username' => $userResult['attributes']['username'],
             'email' => $userResult['attributes']['email'],
             'first_name' => $userResult['attributes']['first_name'],
@@ -535,21 +535,21 @@ function pterodactyl_ChangePassword(array $params) {
     return 'success';
 }
 
-function pterodactyl_ChangePackage(array $params) {
+function pelican_ChangePackage(array $params) {
     try {
-        $serverData = pterodactyl_GetServerID($params, true);
+        $serverData = pelican_GetServerID($params, true);
         if($serverData['status_code'] === 404 || !isset($serverData['attributes']['id'])) throw new Exception('Failed to change package of server because it doesn\'t exist.');
         $serverId = $serverData['attributes']['id'];
 
-        $memory = pterodactyl_GetOption($params, 'memory');
-        $swap = pterodactyl_GetOption($params, 'swap');
-        $io = pterodactyl_GetOption($params, 'io');
-        $cpu = pterodactyl_GetOption($params, 'cpu');
-        $disk = pterodactyl_GetOption($params, 'disk');
-        $databases = pterodactyl_GetOption($params, 'databases');
-        $allocations = pterodactyl_GetOption($params, 'allocations');
-        $backups = pterodactyl_GetOption($params, 'backups');
-        $oom_disabled = pterodactyl_GetOption($params, 'oom_disabled') ? true : false;
+        $memory = pelican_GetOption($params, 'memory');
+        $swap = pelican_GetOption($params, 'swap');
+        $io = pelican_GetOption($params, 'io');
+        $cpu = pelican_GetOption($params, 'cpu');
+        $disk = pelican_GetOption($params, 'disk');
+        $databases = pelican_GetOption($params, 'databases');
+        $allocations = pelican_GetOption($params, 'allocations');
+        $backups = pelican_GetOption($params, 'backups');
+        $oom_disabled = pelican_GetOption($params, 'oom_disabled') ? true : false;
         $updateData = [
             'allocation' => $serverData['attributes']['allocation'],
             'memory' => (int) $memory,
@@ -565,20 +565,20 @@ function pterodactyl_ChangePackage(array $params) {
             ],
         ];
 
-        $updateResult = pterodactyl_API($params, 'servers/' . $serverId . '/build', $updateData, 'PATCH');
+        $updateResult = pelican_API($params, 'servers/' . $serverId . '/build', $updateData, 'PATCH');
         if($updateResult['status_code'] !== 200) throw new Exception('Failed to update build of the server, received error code: ' . $updateResult['status_code'] . '. Enable module debug log for more info.');
 
-        $nestId = pterodactyl_GetOption($params, 'nest_id');
-        $eggId = pterodactyl_GetOption($params, 'egg_id');
-        $eggData = pterodactyl_API($params, 'nests/' . $nestId . '/eggs/' . $eggId . '?include=variables');
+        $nestId = pelican_GetOption($params, 'nest_id');
+        $eggId = pelican_GetOption($params, 'egg_id');
+        $eggData = pelican_API($params, 'nests/' . $nestId . '/eggs/' . $eggId . '?include=variables');
         if($eggData['status_code'] !== 200) throw new Exception('Failed to get egg data, received error code: ' . $eggData['status_code'] . '. Enable module debug log for more info.');
 
         $environment = [];
         foreach($eggData['attributes']['relationships']['variables']['data'] as $key => $val) {
             $attr = $val['attributes'];
             $var = $attr['env_variable'];
-            $friendlyName = pterodactyl_GetOption($params, $attr['name']);
-            $envName = pterodactyl_GetOption($params, $attr['env_variable']);
+            $friendlyName = pelican_GetOption($params, $attr['name']);
+            $envName = pelican_GetOption($params, $attr['env_variable']);
 
             if(isset($friendlyName)) $environment[$var] = $friendlyName;
             elseif(isset($envName)) $environment[$var] = $envName;
@@ -586,8 +586,8 @@ function pterodactyl_ChangePackage(array $params) {
             elseif(isset($attr['default_value'])) $environment[$var] = $attr['default_value'];
         }
 
-        $image = pterodactyl_GetOption($params, 'image', $serverData['attributes']['container']['image']);
-        $startup = pterodactyl_GetOption($params, 'startup', $serverData['attributes']['container']['startup_command']);
+        $image = pelican_GetOption($params, 'image', $serverData['attributes']['container']['image']);
+        $startup = pelican_GetOption($params, 'startup', $serverData['attributes']['container']['startup_command']);
         $updateData = [
             'environment' => $environment,
             'startup' => $startup,
@@ -596,7 +596,7 @@ function pterodactyl_ChangePackage(array $params) {
             'skip_scripts' => false,
         ];
 
-        $updateResult = pterodactyl_API($params, 'servers/' . $serverId . '/startup', $updateData, 'PATCH');
+        $updateResult = pelican_API($params, 'servers/' . $serverId . '/startup', $updateData, 'PATCH');
         if($updateResult['status_code'] !== 200) throw new Exception('Failed to update startup of the server, received error code: ' . $updateResult['status_code'] . '. Enable module debug log for more info.');
     } catch(Exception $err) {
         return $err->getMessage();
@@ -605,28 +605,28 @@ function pterodactyl_ChangePackage(array $params) {
     return 'success';
 }
 
-function pterodactyl_LoginLink(array $params) {
-    if($params['moduletype'] !== 'pterodactyl') return;
+function pelican_LoginLink(array $params) {
+    if($params['moduletype'] !== 'pelican') return;
 
     try {
-        $serverId = pterodactyl_GetServerID($params);
+        $serverId = pelican_GetServerID($params);
         if(!isset($serverId)) return;
 
-        $hostname = pterodactyl_GetHostname($params);
+        $hostname = pelican_GetHostname($params);
         echo '<a style="padding-right:3px" href="'.$hostname.'/admin/servers/view/' . $serverId . '" target="_blank">[Go to Service]</a>';
-        echo '<p style="float:right; padding-right:1.3%">[<a href="https://github.com/pterodactyl/whmcs/issues" target="_blank">Report A Bug</a>]</p>';
-        # echo '<p style="float: right">[<a href="https://github.com/pterodactyl/whmcs/issues" target="_blank">Report A Bug</a>]</p>';
+        echo '<p style="float:right; padding-right:1.3%">[<a href="https://github.com/pelican-dev/whmcs/issues" target="_blank">Report A Bug</a>]</p>';
+        # echo '<p style="float: right">[<a href="https://github.com/pelican-dev/whmcs/issues" target="_blank">Report A Bug</a>]</p>';
     } catch(Exception $err) {
         // Ignore
     }
 }
 
-function pterodactyl_ClientArea(array $params) {
-    if($params['moduletype'] !== 'pterodactyl') return;
+function pelican_ClientArea(array $params) {
+    if($params['moduletype'] !== 'pelican') return;
 
     try {
-        $hostname = pterodactyl_GetHostname($params);
-        $serverData = pterodactyl_GetServerID($params, true);
+        $hostname = pelican_GetHostname($params);
+        $serverData = pelican_GetServerID($params, true);
         if($serverData['status_code'] === 404 || !isset($serverData['attributes']['id'])) return [
             'templatefile' => 'clientarea',
             'vars' => [
