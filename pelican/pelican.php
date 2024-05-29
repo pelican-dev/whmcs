@@ -351,7 +351,6 @@ function pelican_CreateAccount(array $params) {
         $io = pelican_GetOption($params, 'io');
         $cpu = pelican_GetOption($params, 'cpu');
         $disk = pelican_GetOption($params, 'disk');
-        $location_id = pelican_GetOption($params, 'location_id');
         $dedicated_ip = pelican_GetOption($params, 'dedicated_ip') ? true : false;
         $port_range = pelican_GetOption($params, 'port_range');
         $port_range = isset($port_range) ? explode(',', $port_range) : [];
@@ -381,7 +380,6 @@ function pelican_CreateAccount(array $params) {
                 'backups' => (int) $backups,
             ],
             'deploy' => [
-                'locations' => [(int) $location_id],
                 'dedicated_ip' => $dedicated_ip,
                 'port_range' => $port_range,
             ],
