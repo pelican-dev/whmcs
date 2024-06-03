@@ -111,19 +111,19 @@ function pelican_ConfigOptions() {
             "Size" => 10,
         ],
         "disk" => [
-            "FriendlyName" => "Disk Space (MB)",
+            "FriendlyName" => "Disk Space (MiB)",
             "Description" => "Amount of Disk Space to assign to the created server.",
             "Type" => "text",
             "Size" => 10,
         ],
         "memory" => [
-            "FriendlyName" => "Memory (MB)",
+            "FriendlyName" => "Memory (MiB)",
             "Description" => "Amount of Memory to assign to the created server.",
             "Type" => "text",
             "Size" => 10,
         ],
         "swap" => [
-            "FriendlyName" => "Swap (MB)",
+            "FriendlyName" => "Swap (MiB)",
             "Description" => "Amount of Swap to assign to the created server.",
             "Type" => "text",
             "Size" => 10,
