@@ -130,7 +130,7 @@ function pelican_ConfigOptions() {
         ],
         "location_id" => [
             "FriendlyName" => "Location ID",
-            "Description" => "ID of the Location to automatically deploy to.",
+            "Description" => "ID of the Location to automatically deploy to. (deprecated)",
             "Type" => "text",
             "Size" => 10,
         ],
