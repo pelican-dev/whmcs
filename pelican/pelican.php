@@ -139,12 +139,6 @@ function pelican_ConfigOptions() {
             "Description" => "Assign dedicated ip to the server (optional)",
             "Type" => "yesno",
         ],
-        "nest_id" => [
-            "FriendlyName" => "Nest ID",
-            "Description" => "ID of the Nest for the server to use.",
-            "Type" => "text",
-            "Size" => 10,
-        ],
         "egg_id" => [
             "FriendlyName" => "Egg ID",
             "Description" => "ID of the Egg for the server to use.",
@@ -333,10 +327,9 @@ function pelican_CreateAccount(array $params) {
             throw new Exception('Failed to create user, received error code: ' . $userResult['status_code'] . '. Enable module debug log for more info.');
         }
 
-        $nestId = pelican_GetOption($params, 'nest_id');
         $eggId = pelican_GetOption($params, 'egg_id');
 
-        $eggData = pelican_API($params, 'nests/' . $nestId . '/eggs/' . $eggId . '?include=variables');
+        $eggData = pelican_API($params, 'eggs/' . $eggId . '?include=variables');
         if($eggData['status_code'] !== 200) throw new Exception('Failed to get egg data, received error code: ' . $eggData['status_code'] . '. Enable module debug log for more info.');
 
         $environment = [];
@@ -371,7 +364,6 @@ function pelican_CreateAccount(array $params) {
         $serverData = [
             'name' => $name,
             'user' => (int) $userId,
-            'nest' => (int) $nestId,
             'egg' => (int) $eggId,
             'docker_image' => $image,
             'startup' => $startup,
@@ -568,9 +560,8 @@ function pelican_ChangePackage(array $params) {
         $updateResult = pelican_API($params, 'servers/' . $serverId . '/build', $updateData, 'PATCH');
         if($updateResult['status_code'] !== 200) throw new Exception('Failed to update build of the server, received error code: ' . $updateResult['status_code'] . '. Enable module debug log for more info.');
 
-        $nestId = pelican_GetOption($params, 'nest_id');
         $eggId = pelican_GetOption($params, 'egg_id');
-        $eggData = pelican_API($params, 'nests/' . $nestId . '/eggs/' . $eggId . '?include=variables');
+        $eggData = pelican_API($params, 'eggs/' . $eggId . '?include=variables');
         if($eggData['status_code'] !== 200) throw new Exception('Failed to get egg data, received error code: ' . $eggData['status_code'] . '. Enable module debug log for more info.');
 
         $environment = [];
