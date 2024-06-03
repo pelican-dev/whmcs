@@ -182,9 +182,9 @@ function pelican_ConfigOptions() {
             "Type" => "text",
             "Size" => 25,
         ],
-        "oom_disabled" => [
-            "FriendlyName" => "Disable OOM Killer",
-            "Description" => "Should the Out Of Memory Killer be disabled (optional)",
+        "oom_killer" => [
+            "FriendlyName" => "Enable OOM Killer",
+            "Description" => "Should the Out Of Memory Killer be enabled (optional)",
             "Type" => "yesno",
         ],
         "backups" => [
@@ -354,14 +354,14 @@ function pelican_CreateAccount(array $params) {
         $databases = pelican_GetOption($params, 'databases');
         $allocations = pelican_GetOption($params, 'allocations');
         $backups = pelican_GetOption($params, 'backups');
-        $oom_disabled = pelican_GetOption($params, 'oom_disabled') ? true : false;
+        $oom_killer = pelican_GetOption($params, 'oom_killer') ? true : false;
         $serverData = [
             'name' => $name,
             'user' => (int) $userId,
             'egg' => (int) $eggId,
             'docker_image' => $image,
             'startup' => $startup,
-            'oom_disabled' => $oom_disabled,
+            'oom_killer' => $oom_killer,
             'limits' => [
                 'memory' => (int) $memory,
                 'swap' => (int) $swap,
@@ -535,7 +535,7 @@ function pelican_ChangePackage(array $params) {
         $databases = pelican_GetOption($params, 'databases');
         $allocations = pelican_GetOption($params, 'allocations');
         $backups = pelican_GetOption($params, 'backups');
-        $oom_disabled = pelican_GetOption($params, 'oom_disabled') ? true : false;
+        $oom_killer = pelican_GetOption($params, 'oom_killer') ? true : false;
         $updateData = [
             'allocation' => $serverData['attributes']['allocation'],
             'memory' => (int) $memory,
@@ -543,7 +543,7 @@ function pelican_ChangePackage(array $params) {
             'io' => (int) $io,
             'cpu' => (int) $cpu,
             'disk' => (int) $disk,
-            'oom_disabled' => $oom_disabled,
+            'oom_killer' => $oom_killer,
             'feature_limits' => [
                 'databases' => (int) $databases,
                 'allocations' => (int) $allocations,
