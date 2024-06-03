@@ -152,12 +152,6 @@ function pelican_ConfigOptions() {
             "Size" => 10,
             "Default" => "500",
         ],
-        "pack_id" => [
-            "FriendlyName" => "Pack ID",
-            "Description" => "ID of the Pack to install the server with (optional) [UNUSED, LEFT FOR COMPATIBILITY REASONS]",
-            "Type" => "text",
-            "Size" => 10,
-        ],
         "port_range" => [
             "FriendlyName" => "Port Range",
             "Description" => "Port ranges seperated by comma to assign to the server (Example: 25565-25570,25580-25590) (optional)",
