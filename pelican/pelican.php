@@ -111,26 +111,26 @@ function pelican_ConfigOptions() {
             "Size" => 10,
         ],
         "disk" => [
-            "FriendlyName" => "Disk Space (MB)",
+            "FriendlyName" => "Disk Space (MiB)",
             "Description" => "Amount of Disk Space to assign to the created server.",
             "Type" => "text",
             "Size" => 10,
         ],
         "memory" => [
-            "FriendlyName" => "Memory (MB)",
+            "FriendlyName" => "Memory (MiB)",
             "Description" => "Amount of Memory to assign to the created server.",
             "Type" => "text",
             "Size" => 10,
         ],
         "swap" => [
-            "FriendlyName" => "Swap (MB)",
+            "FriendlyName" => "Swap (MiB)",
             "Description" => "Amount of Swap to assign to the created server.",
             "Type" => "text",
             "Size" => 10,
         ],
         "location_id" => [
             "FriendlyName" => "Location ID",
-            "Description" => "ID of the Location to automatically deploy to.",
+            "Description" => "ID of the Location to automatically deploy to. (deprecated)",
             "Type" => "text",
             "Size" => 10,
         ],
@@ -138,12 +138,6 @@ function pelican_ConfigOptions() {
             "FriendlyName" => "Dedicated IP",
             "Description" => "Assign dedicated ip to the server (optional)",
             "Type" => "yesno",
-        ],
-        "nest_id" => [
-            "FriendlyName" => "Nest ID",
-            "Description" => "ID of the Nest for the server to use.",
-            "Type" => "text",
-            "Size" => 10,
         ],
         "egg_id" => [
             "FriendlyName" => "Egg ID",
@@ -157,12 +151,6 @@ function pelican_ConfigOptions() {
             "Type" => "text",
             "Size" => 10,
             "Default" => "500",
-        ],
-        "pack_id" => [
-            "FriendlyName" => "Pack ID",
-            "Description" => "ID of the Pack to install the server with (optional) [UNUSED, LEFT FOR COMPATIBILITY REASONS]",
-            "Type" => "text",
-            "Size" => 10,
         ],
         "port_range" => [
             "FriendlyName" => "Port Range",
@@ -194,9 +182,9 @@ function pelican_ConfigOptions() {
             "Type" => "text",
             "Size" => 25,
         ],
-        "oom_disabled" => [
-            "FriendlyName" => "Disable OOM Killer",
-            "Description" => "Should the Out Of Memory Killer be disabled (optional)",
+        "oom_killer" => [
+            "FriendlyName" => "Enable OOM Killer",
+            "Description" => "Should the Out Of Memory Killer be enabled (optional)",
             "Type" => "yesno",
         ],
         "backups" => [
@@ -333,10 +321,9 @@ function pelican_CreateAccount(array $params) {
             throw new Exception('Failed to create user, received error code: ' . $userResult['status_code'] . '. Enable module debug log for more info.');
         }
 
-        $nestId = pelican_GetOption($params, 'nest_id');
         $eggId = pelican_GetOption($params, 'egg_id');
 
-        $eggData = pelican_API($params, 'nests/' . $nestId . '/eggs/' . $eggId . '?include=variables');
+        $eggData = pelican_API($params, 'eggs/' . $eggId . '?include=variables');
         if($eggData['status_code'] !== 200) throw new Exception('Failed to get egg data, received error code: ' . $eggData['status_code'] . '. Enable module debug log for more info.');
 
         $environment = [];
@@ -367,15 +354,14 @@ function pelican_CreateAccount(array $params) {
         $databases = pelican_GetOption($params, 'databases');
         $allocations = pelican_GetOption($params, 'allocations');
         $backups = pelican_GetOption($params, 'backups');
-        $oom_disabled = pelican_GetOption($params, 'oom_disabled') ? true : false;
+        $oom_killer = pelican_GetOption($params, 'oom_killer') ? true : false;
         $serverData = [
             'name' => $name,
             'user' => (int) $userId,
-            'nest' => (int) $nestId,
             'egg' => (int) $eggId,
             'docker_image' => $image,
             'startup' => $startup,
-            'oom_disabled' => $oom_disabled,
+            'oom_killer' => $oom_killer,
             'limits' => [
                 'memory' => (int) $memory,
                 'swap' => (int) $swap,
@@ -549,7 +535,7 @@ function pelican_ChangePackage(array $params) {
         $databases = pelican_GetOption($params, 'databases');
         $allocations = pelican_GetOption($params, 'allocations');
         $backups = pelican_GetOption($params, 'backups');
-        $oom_disabled = pelican_GetOption($params, 'oom_disabled') ? true : false;
+        $oom_killer = pelican_GetOption($params, 'oom_killer') ? true : false;
         $updateData = [
             'allocation' => $serverData['attributes']['allocation'],
             'memory' => (int) $memory,
@@ -557,7 +543,7 @@ function pelican_ChangePackage(array $params) {
             'io' => (int) $io,
             'cpu' => (int) $cpu,
             'disk' => (int) $disk,
-            'oom_disabled' => $oom_disabled,
+            'oom_killer' => $oom_killer,
             'feature_limits' => [
                 'databases' => (int) $databases,
                 'allocations' => (int) $allocations,
@@ -568,9 +554,8 @@ function pelican_ChangePackage(array $params) {
         $updateResult = pelican_API($params, 'servers/' . $serverId . '/build', $updateData, 'PATCH');
         if($updateResult['status_code'] !== 200) throw new Exception('Failed to update build of the server, received error code: ' . $updateResult['status_code'] . '. Enable module debug log for more info.');
 
-        $nestId = pelican_GetOption($params, 'nest_id');
         $eggId = pelican_GetOption($params, 'egg_id');
-        $eggData = pelican_API($params, 'nests/' . $nestId . '/eggs/' . $eggId . '?include=variables');
+        $eggData = pelican_API($params, 'eggs/' . $eggId . '?include=variables');
         if($eggData['status_code'] !== 200) throw new Exception('Failed to get egg data, received error code: ' . $eggData['status_code'] . '. Enable module debug log for more info.');
 
         $environment = [];

@@ -16,7 +16,7 @@ This module requires the panel to be on version 1.0.0 and above.
 
 1. Download/Git clone this repository.
 2. Move the ``pelican/`` folder into ``<path to whmcs>/modules/servers/``.
-3. Create API Credentials with these permissions: ![Image](https://i.imgur.com/oeoTyBO.png)
+3. Create API Credentials with these permissions: ![Image](https://i.imgur.com/ZM2NRxD.png)
 4. In WHMCS 8+ navigate to System Settings → Servers. In WHMCS 7 or below navigate to Setup → Products/Services → Servers
 5. Create new server, fill the name with anything you want, hostname as the url to the panel either as an IP or domain. For example: ``123.123.123.123`` or ``my.pelican.panel``
 6. Change Server Type to Pelican, leave username empty, fill the password field with your generated API Key.
@@ -41,7 +41,7 @@ Overwriting values can be done through either Configurable Options or Custom Fie
 
 Their name should be exactly what you want to overwrite.
 dedicated_ip => Will overwrite dedicated_ip if its ticked or not.
-Valid options: ``server_name, memory, swap, io, cpu, disk, nest_id, egg_id, pack_id, location_id, dedicated_ip, port_range, image, startup, databases, allocations, backups, oom_disabled, username``
+Valid options: ``server_name, memory, swap, io, cpu, disk, egg_id, location_id, dedicated_ip, port_range, image, startup, databases, allocations, backups, oom_killer, username``
 
 This also works for any name of environment variable:
 Player Slots => Will overwrite the environment variable named "Player Slots" to its value.
