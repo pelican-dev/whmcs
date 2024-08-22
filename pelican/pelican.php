@@ -375,6 +375,7 @@ function pelican_CreateAccount(array $params) {
                 'backups' => (int) $backups,
             ],
             'deploy' => [
+		'tags' => [], // fix beta-8
                 'locations' => [(int) $location_id],
                 'dedicated_ip' => $dedicated_ip,
                 'port_range' => $port_range,
