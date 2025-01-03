@@ -128,11 +128,11 @@ function pelican_ConfigOptions() {
             "Type" => "text",
             "Size" => 10,
         ],
-        "location_id" => [
-            "FriendlyName" => "Location ID",
-            "Description" => "ID of the Location to automatically deploy to. (deprecated)",
+        "tags" => [
+            "FriendlyName" => "Primary Tags",
+            "Description" => "Primary Tags Of The Nodes",
             "Type" => "text",
-            "Size" => 10,
+            "Size" => 25,
         ],
         "dedicated_ip" => [
             "FriendlyName" => "Dedicated IP",
@@ -320,7 +320,9 @@ function pelican_CreateAccount(array $params) {
         } else {
             throw new Exception('Failed to create user, received error code: ' . $userResult['status_code'] . '. Enable module debug log for more info.');
         }
-
+        // NekoMonci12 - Start
+        $tags = pelican_GetOption($params, 'tags');
+        // NekoMonci12 - End
         $eggId = pelican_GetOption($params, 'egg_id');
 
         $eggData = pelican_API($params, 'eggs/' . $eggId . '?include=variables');
@@ -345,7 +347,7 @@ function pelican_CreateAccount(array $params) {
         $io = pelican_GetOption($params, 'io');
         $cpu = pelican_GetOption($params, 'cpu');
         $disk = pelican_GetOption($params, 'disk');
-        $location_id = pelican_GetOption($params, 'location_id');
+        $tags = pelican_GetOption($params, 'tags');
         $dedicated_ip = pelican_GetOption($params, 'dedicated_ip') ? true : false;
         $port_range = pelican_GetOption($params, 'port_range');
         $port_range = isset($port_range) ? explode(',', $port_range) : [];
@@ -361,7 +363,9 @@ function pelican_CreateAccount(array $params) {
             'egg' => (int) $eggId,
             'docker_image' => $image,
             'startup' => $startup,
-            'oom_killer' => $oom_killer,
+            // NekoMonci12 - Start
+            'oom_disabled' => $oom_killer, // The oom_killer is still called as oom_disabled in API
+            // NekoMonci12 - End
             'limits' => [
                 'memory' => (int) $memory,
                 'swap' => (int) $swap,
@@ -375,7 +379,10 @@ function pelican_CreateAccount(array $params) {
                 'backups' => (int) $backups,
             ],
             'deploy' => [
-                'locations' => [(int) $location_id],
+                // NekoMonci12 - Start
+                'locations' => [], // locations is still needed in the API, but it's not used
+                'tags' => is_array($tags) ? $tags : [$tags], // tags still cant make node filters (currently used to allow the node creation only)
+                // NekoMonci12 - End
                 'dedicated_ip' => $dedicated_ip,
                 'port_range' => $port_range,
             ],
