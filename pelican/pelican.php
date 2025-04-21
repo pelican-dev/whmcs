@@ -128,11 +128,11 @@ function pelican_ConfigOptions() {
             "Type" => "text",
             "Size" => 10,
         ],
-        "location_id" => [
-            "FriendlyName" => "Location ID",
-            "Description" => "ID of the Location to automatically deploy to. (deprecated)",
+        "tags" => [
+            "FriendlyName" => "Node Tags",
+            "Description" => "Comma-separated list of tags to use for node selection. Leave empty for any node.",
             "Type" => "text",
-            "Size" => 10,
+            "Size" => 25,
         ],
         "dedicated_ip" => [
             "FriendlyName" => "Dedicated IP",
@@ -152,9 +152,9 @@ function pelican_ConfigOptions() {
             "Size" => 10,
             "Default" => "500",
         ],
-        "port_range" => [
-            "FriendlyName" => "Port Range",
-            "Description" => "Port ranges seperated by comma to assign to the server (Example: 25565-25570,25580-25590) (optional)",
+        "port_ranges" => [
+            "FriendlyName" => "Port Ranges",
+            "Description" => "Port ranges in format start-end,start-end (e.g. 2001-2020,27015-27025). Will auto-increment within ranges until free port found.",
             "Type" => "text",
             "Size" => 25,
         ],
@@ -288,10 +288,153 @@ function pelican_GetOption(array $params, $id, $default = NULL) {
     return $default;
 }
 
+function pelican_GetAvailablePorts(array $params, array $ranges) {
+    // Get all nodes that match the tags
+    $tags = pelican_GetOption($params, 'tags');
+    $tags = !empty($tags) ? explode(',', $tags) : [];
+    
+    // Build query string for the request
+    $queryParams = [
+        'memory' => (int) pelican_GetOption($params, 'memory', 0),
+        'disk' => (int) pelican_GetOption($params, 'disk', 0),
+        'cpu' => (int) pelican_GetOption($params, 'cpu', 0),
+    ];
+
+    // Add tags as query parameters if they exist
+    if (!empty($tags)) {
+        foreach ($tags as $tag) {
+            $queryParams['tags[]'] = $tag;
+        }
+    }
+
+    // Build the query string
+    $queryString = http_build_query($queryParams);
+    
+    // Make the API call with query parameters
+    $nodesResult = pelican_API($params, 'nodes/deployable?' . $queryString, [], 'GET');
+
+    if ($nodesResult['status_code'] !== 200) {
+        throw new Exception('Failed to get deployable nodes, received error code: ' . $nodesResult['status_code'] . '. ' . 
+            (isset($nodesResult['errors'][0]['detail']) ? $nodesResult['errors'][0]['detail'] : ''));
+    }
+
+    // Log the deployable nodes
+    logModuleCall("Pelican-WHMCS", "Deployable Nodes", "Nodes", print_r($nodesResult, true));
+
+    $availablePorts = [];
+    $portsFound = 0;
+    $maxPortsNeeded = count($ranges); // We need one port from each range
+
+    // For each node, check port availability using the allocations from the deployable nodes response
+    foreach ($nodesResult['data'] as $node) {
+        if ($portsFound >= $maxPortsNeeded) break; // Stop if we found all needed ports
+
+        $nodeId = $node['attributes']['id'];
+        
+        // Get all allocations for this node to check port availability
+        $allocationsResult = pelican_API($params, 'nodes/' . $nodeId . '/allocations', [], 'GET');
+        if ($allocationsResult['status_code'] !== 200) {
+            continue; // Skip this node if we can't get allocations
+        }
+
+        // Log the allocations for this node
+        logModuleCall("Pelican-WHMCS", "Node Allocations", "Node ID: " . $nodeId, print_r($allocationsResult, true));
+
+        // Create a map of used ports from the node's allocations
+        $usedPorts = [];
+        if (isset($allocationsResult['data'])) {
+            foreach ($allocationsResult['data'] as $allocation) {
+                // Only mark ports as used if they are actually assigned (assigned = 1)
+                if (isset($allocation['attributes']['assigned']) && $allocation['attributes']['assigned'] == 1) {
+                    $usedPorts[$allocation['attributes']['port']] = true;
+                }
+            }
+        }
+
+        // Log the used ports
+        logModuleCall("Pelican-WHMCS", "Used Ports", "Node ID: " . $nodeId, print_r($usedPorts, true));
+
+        // Check each range for available ports
+        foreach ($ranges as $rangeIndex => $range) {
+            if ($portsFound >= $maxPortsNeeded) break; // Stop if we found all needed ports
+            
+            list($start, $end) = explode('-', $range);
+            $start = (int) $start;
+            $end = (int) $end;
+
+            // Log the range being checked
+            logModuleCall("Pelican-WHMCS", "Checking Range", "Range: " . $start . "-" . $end, "");
+
+            // Find first available port in range
+            for ($port = $start; $port <= $end; $port++) {
+                if (!isset($usedPorts[$port])) {
+                    $availablePorts[] = [
+                        'node_id' => $nodeId,
+                        'ip' => $allocationsResult['data'][0]['attributes']['ip'],
+                        'port' => $port
+                    ];
+                    $portsFound++;
+                    
+                    // Log the found port
+                    logModuleCall("Pelican-WHMCS", "Found Port", "Port: " . $port . " on Node: " . $nodeId, "");
+                    
+                    break; // Found a port in this range, move to next range
+                }
+            }
+        }
+    }
+
+    // If we didn't find enough ports, throw an exception
+    if ($portsFound < $maxPortsNeeded) {
+        throw new Exception('Could not find enough available ports. Found ' . $portsFound . ' of ' . $maxPortsNeeded . ' needed ports.');
+    }
+
+    // Add debug logging
+    logModuleCall("Pelican-WHMCS", "Port Range Debug", "Ranges", print_r($ranges, true));
+    logModuleCall("Pelican-WHMCS", "Port Range Debug", "Available Ports", print_r($availablePorts, true));
+
+    return $availablePorts;
+}
+
 function pelican_CreateAccount(array $params) {
     try {
         $serverId = pelican_GetServerID($params);
         if(isset($serverId)) throw new Exception('Failed to create server because it is already created.');
+
+        // Process port ranges
+        $portRanges = pelican_GetOption($params, 'port_ranges');
+        $ranges = !empty($portRanges) ? explode(',', $portRanges) : [];
+        $validRanges = [];
+        
+        // Log the raw port ranges
+        logModuleCall("Pelican-WHMCS", "Raw Port Ranges", "Port Ranges", print_r($portRanges, true));
+        logModuleCall("Pelican-WHMCS", "Exploded Ranges", "Ranges", print_r($ranges, true));
+        
+        foreach ($ranges as $range) {
+            $range = trim($range);
+            if (empty($range)) {
+                logModuleCall("Pelican-WHMCS", "Empty Range", "Skipping empty range", "");
+                continue;
+            }
+            
+            if (preg_match('/^\d+-\d+$/', $range)) {
+                $validRanges[] = $range;
+                logModuleCall("Pelican-WHMCS", "Valid Range", "Added range: " . $range, "");
+            } else {
+                logModuleCall("Pelican-WHMCS", "Invalid Range", "Invalid range format: " . $range, "");
+            }
+        }
+        
+        // Log the valid ranges
+        logModuleCall("Pelican-WHMCS", "Valid Ranges", "Valid Ranges", print_r($validRanges, true));
+
+        $availablePorts = [];
+        if (!empty($validRanges)) {
+            $availablePorts = pelican_GetAvailablePorts($params, $validRanges);
+            if (empty($availablePorts)) {
+                throw new Exception('No available ports found in the specified ranges');
+            }
+        }
 
         $userResult = pelican_API($params, 'users/external/' . $params['clientsdetails']['id']);
         if($userResult['status_code'] === 404) {
@@ -345,16 +488,41 @@ function pelican_CreateAccount(array $params) {
         $io = pelican_GetOption($params, 'io');
         $cpu = pelican_GetOption($params, 'cpu');
         $disk = pelican_GetOption($params, 'disk');
-        $location_id = pelican_GetOption($params, 'location_id');
+        $tags = pelican_GetOption($params, 'tags');
+        $tags = !empty($tags) ? explode(',', $tags) : [];
         $dedicated_ip = pelican_GetOption($params, 'dedicated_ip') ? true : false;
-        $port_range = pelican_GetOption($params, 'port_range');
-        $port_range = isset($port_range) ? explode(',', $port_range) : [];
         $image = pelican_GetOption($params, 'image', $eggData['attributes']['docker_image']);
         $startup = pelican_GetOption($params, 'startup', $eggData['attributes']['startup']);
         $databases = pelican_GetOption($params, 'databases');
         $allocations = pelican_GetOption($params, 'allocations');
         $backups = pelican_GetOption($params, 'backups');
         $oom_killer = pelican_GetOption($params, 'oom_killer') ? true : false;
+
+        // If we found a specific node with available ports, use it
+        $nodeId = !empty($availablePorts) ? $availablePorts[0]['node_id'] : null;
+        
+        // Use the available ports we already found
+        $portRange = [];
+        $addAllocations = [];
+        
+        if (!empty($availablePorts)) {
+            // First port becomes the primary port range
+            $portRange[] = (string)$availablePorts[0]['port'];
+            
+            // Get allocation IDs for additional ports
+            $allocationsResult = pelican_API($params, 'nodes/' . $nodeId . '/allocations', [], 'GET');
+            if ($allocationsResult['status_code'] === 200 && isset($allocationsResult['data'])) {
+                foreach ($allocationsResult['data'] as $allocation) {
+                    for ($i = 1; $i < count($availablePorts); $i++) {
+                        if ($allocation['attributes']['port'] == $availablePorts[$i]['port']) {
+                            $addAllocations[] = $allocation['attributes']['id'];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         $serverData = [
             'name' => $name,
             'user' => (int) $userId,
@@ -371,36 +539,72 @@ function pelican_CreateAccount(array $params) {
             ],
             'feature_limits' => [
                 'databases' => $databases ? (int) $databases : null,
-                'allocations' => (int) $allocations,
+                'allocations' => count($availablePorts), // Set allocation limit to match number of ports
                 'backups' => (int) $backups,
             ],
             'deploy' => [
-                'locations' => [(int) $location_id],
+                'tags' => $tags,
                 'dedicated_ip' => $dedicated_ip,
-                'port_range' => $port_range,
+                'port_range' => $portRange,
             ],
             'environment' => $environment,
             'start_on_completion' => true,
             'external_id' => (string) $params['serviceid'],
         ];
 
+        // If we found a specific node with available ports, use it
+        if ($nodeId) {
+            $serverData['node_id'] = $nodeId;
+        }
+
+        // Add debug logging for server creation
+        logModuleCall("Pelican-WHMCS", "Server Creation Debug", "Server Data", print_r($serverData, true));
+
         $server = pelican_API($params, 'servers?include=allocations', $serverData, 'POST');
 
-        if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
+        if($server['status_code'] === 400) {
+            $error = isset($server['errors'][0]['detail']) ? $server['errors'][0]['detail'] : 'Unknown error';
+            throw new Exception('Failed to create server: ' . $error);
+        }
         if($server['status_code'] !== 201) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
+
+        // If we have additional allocations, add them using the build endpoint
+        if (!empty($addAllocations)) {
+            $buildData = [
+                'allocation' => $server['attributes']['allocation'],
+                'memory' => (int) $memory,
+                'swap' => (int) $swap,
+                'io' => (int) $io,
+                'cpu' => (int) $cpu,
+                'disk' => (int) $disk,
+                'feature_limits' => [
+                    'databases' => $databases ? (int) $databases : null,
+                    'backups' => (int) $backups,
+                ],
+                'add_allocations' => $addAllocations
+            ];
+            
+            $buildResult = pelican_API($params, 'servers/' . $server['attributes']['id'] . '/build', $buildData, 'PATCH');
+            if ($buildResult['status_code'] !== 200) {
+                logModuleCall("Pelican-WHMCS", "Failed to add additional allocations", "Build Data", print_r($buildData, true));
+                logModuleCall("Pelican-WHMCS", "Build Result", "Result", print_r($buildResult, true));
+            }
+        }
 
         unset($params['password']);
 
         // Get IP & Port and set on WHMCS "Dedicated IP" field
-        $_IP = $server['attributes']['relationships']['allocations']['data'][0]['attributes']['ip'];
+        $_IP = $server['attributes']['relationships']['allocations']['datas'][0]['attributes']['ip'];
         $_Port = $server['attributes']['relationships']['allocations']['data'][0]['attributes']['port'];
         
         // Check if IP & Port field have value. Prevents ":" being added if API error
         if (isset($_IP) && isset($_Port)) {
-        try {
-			$query = Capsule::table('tblhosting')->where('id', $params['serviceid'])->where('userid', $params['userid'])->update(array('dedicatedip' => $_IP . ":" . $_Port));
-		} catch (Exception $e) { return $e->getMessage() . "<br />" . $e->getTraceAsString(); }
-    }
+            try {
+                $query = Capsule::table('tblhosting')->where('id', $params['serviceid'])->where('userid', $params['userid'])->update(array('dedicatedip' => $_IP . ":" . $_Port));
+            } catch (Exception $e) { 
+                return $e->getMessage() . "<br />" . $e->getTraceAsString(); 
+            }
+        }
 
         Capsule::table('tblhosting')->where('id', $params['serviceid'])->update([
             'username' => '',
@@ -598,7 +802,7 @@ function pelican_LoginLink(array $params) {
         if(!isset($serverId)) return;
 
         $hostname = pelican_GetHostname($params);
-        echo '<a style="padding-right:3px" href="'.$hostname.'/admin/servers/view/' . $serverId . '" target="_blank">[Go to Service]</a>';
+        echo '<a style="padding-right:3px" href="'.$hostname.'/admin/servers/' . $serverId . '/edit" target="_blank">[Go to Service]</a>';
         echo '<p style="float:right; padding-right:1.3%">[<a href="https://github.com/pelican-dev/whmcs/issues" target="_blank">Report A Bug</a>]</p>';
         # echo '<p style="float: right">[<a href="https://github.com/pelican-dev/whmcs/issues" target="_blank">Report A Bug</a>]</p>';
     } catch(Exception $err) {
@@ -611,8 +815,8 @@ function pelican_ClientArea(array $params) {
 
     try {
         $hostname = pelican_GetHostname($params);
-        $serverData = pelican_GetServerID($params, true);
-        if($serverData['status_code'] === 404 || !isset($serverData['attributes']['id'])) return [
+        $serverId = pelican_GetServerID($params);
+        if($serverId['status_code'] === 404 || !isset($serverId)) return [
             'templatefile' => 'clientarea',
             'vars' => [
                 'serviceurl' => $hostname,
@@ -622,7 +826,7 @@ function pelican_ClientArea(array $params) {
         return [
             'templatefile' => 'clientarea',
             'vars' => [
-                'serviceurl' => $hostname . '/server/' . $serverData['attributes']['identifier'],
+                'serviceurl' => $hostname . '/server/' . $serverId,
             ],
         ];
     } catch (Exception $err) {
