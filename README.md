@@ -1,3 +1,7 @@
+> [!CAUTION]
+> This module is currently not in a functional state and Pelican itself is still in beta!  
+> We **strongly** advise against using (unstable) beta software in production, especially if you have customers.
+
 ## WHMCS
 
 WHMCS Module for the [Pelican Panel](https://github.com/pelican-dev/panel/).
